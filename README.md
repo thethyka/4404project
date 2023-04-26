@@ -1,2 +1,2 @@
 # 4404project
-Automated trading bot algorithm based on daily candle data for AUD bitcoin historyz.
+Automated trading bot algorithm based on daily candle data for AUD bitcoin history.
