@@ -12,7 +12,7 @@ from ta.trend import SMAIndicator, EMAIndicator
 
 def get_data(exchange_name, symbol, window, sma_window_size, min_ema_window_size, max_ema_window_size, ema_increment):
     '''
-    Extract cryptocurency stock data
+    Extract daily cryptocurrency stock data
 
     @param exchange_name: Exchange market to retrieve data
     @param symbol: Cryptocurrency symbol to retrieve data
@@ -24,7 +24,7 @@ def get_data(exchange_name, symbol, window, sma_window_size, min_ema_window_size
     '''
     # Retrieve data from the exchange market for a specific cryptocurrency symbol
     exchange = getattr(ccxt, exchange_name)()
-    ohlcv = exchange.fetch_ohlcv(symbol, '1d', limit=window)
+    ohlcv = exchange.fetch_ohlcv(symbol, '1d', limit=window, since=1620691200000)
 
     # Create a table for the data
     df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
@@ -42,9 +42,9 @@ def get_data(exchange_name, symbol, window, sma_window_size, min_ema_window_size
     # Return the data table
     return df
 
-def buy_trigger(wallet, price, amount):
+def buy(wallet, price, amount):
     '''
-    Set a buy trigger and purchase cryptocurrency
+    Purchase cryptocurrency
 
     @param wallet: Current amount of AUD in wallet
     @param price: Current price of the cryptocurrency symbol
@@ -55,9 +55,9 @@ def buy_trigger(wallet, price, amount):
     new_trigger = "BUY"
     return new_wallet, new_amount, new_trigger
 
-def sell_trigger(wallet, price, amount):
+def sell(wallet, price, amount):
     '''
-    Set a sell trigger and sell cryptocurrency
+    Sell cryptocurrency
 
     @param wallet: Current amount of AUD in wallet
     @param price: Current price of the cryptocurrency symbol
@@ -123,29 +123,30 @@ def run_simulation(num_ants, Q, period, fix_sma, min_ema, max_ema, ema_increment
             min_sell_price = 0
 
             # Buy/Sell BTC depending on conditions set
+            ''' TO DO - REDEFINE BUY/SELL TRIGGERS '''
             for i in range(period):
                 # Initial buy trigger
                 if i == 0: 
                     price = data['open'][i]*1.02
-                    wallet, btc_amount, trigger = buy_trigger(wallet, price, btc_amount)
+                    wallet, btc_amount, trigger = buy(wallet, price, btc_amount)
                     min_sell_price = price
                 
                 # Final sell trigger
                 elif i == period - 1:
                     price = data['close'][i]*0.98
-                    wallet, btc_amount, trigger = sell_trigger(wallet, price, btc_amount)
+                    wallet, btc_amount, trigger = sell(wallet, price, btc_amount)
 
                 else:
                     # Buy trigger
                     if data[f'sma-{fix_sma}'][i] > data[f'ema-{ema_value}'][i] and data[f'sma-{fix_sma}'][i - 1] < data[f'ema-{ema_value}'][i - 1] and trigger != "BUY":
                         price = data['close'][i]*1.02
-                        wallet, btc_amount, trigger = buy_trigger(wallet, price, btc_amount)
+                        wallet, btc_amount, trigger = buy(wallet, price, btc_amount)
                         min_sell_price = price
 
                     # Sell trigger
                     elif data[f'sma-{fix_sma}'][i] < data[f'ema-{ema_value}'][i] and data[f'sma-{fix_sma}'][i - 1] > data[f'ema-{ema_value}'][i -1] and min_sell_price <= data['close'][i] and trigger != "SELL":
                         price = data['close'][i]*0.98
-                        wallet, btc_amount, trigger = sell_trigger(wallet, price, btc_amount)
+                        wallet, btc_amount, trigger = sell(wallet, price, btc_amount)
 
             # Checking for the best parameters locally
             if wallet > local_best_wallet:
@@ -179,7 +180,8 @@ def run_simulation(num_ants, Q, period, fix_sma, min_ema, max_ema, ema_increment
     # Printing results and saving as Excel CSV
     print(results.to_string(index=False))
     print(f'Best overall: EMA-{best_ema}, ${best_wallet}')
-    results.to_csv(f'results.csv', index=False)
+    #results.to_csv(f'aco_results.csv', index=False)
+    #data.to_csv(f'aco_data.csv', index=False)
 
 if __name__ == "__main__":
     if len(sys.argv) != 8:
