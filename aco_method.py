@@ -1,6 +1,6 @@
-# python3 aco_method.py 100 0.01 720 50 5 100 5
-# python3 aco_method.py 125 0.01 720 50 5 100 5
-# python3 aco_method.py 250 0.01 720 50 5 100 5
+# python3 aco_method.py 100 0.01
+# python3 aco_method.py 125 0.01
+# python3 aco_method.py 250 0.01
 
 import sys
 import random
@@ -9,7 +9,6 @@ import pandas as pd
 
 def csv_to_df(filename):
     df = pd.read_csv(filename)
-    print(df)
     return df
 
 def buy(wallet, price, amount):
@@ -56,6 +55,9 @@ def run_simulation(num_ants, Q):
     best_ema, best_wallet = 0, 0
     initial_wallet = 100
 
+    # Setting threshold
+    volume_threshold = 12
+
     # Fixed based on aco_data.csv
     period = 720
     fix_sma = 50
@@ -96,7 +98,6 @@ def run_simulation(num_ants, Q):
             min_sell_price = 0
 
             # Buy/Sell BTC depending on conditions set
-            ''' TO DO - REDEFINE BUY/SELL TRIGGERS '''
             for i in range(period):
                 # Initial buy trigger
                 if i == 0: 
@@ -110,16 +111,23 @@ def run_simulation(num_ants, Q):
                     wallet, btc_amount, trigger = sell(wallet, price, btc_amount)
 
                 else:
-                    # Buy trigger
-                    if data[f'sma-{fix_sma}'][i] > data[f'ema-{ema_value}'][i] and data[f'sma-{fix_sma}'][i - 1] < data[f'ema-{ema_value}'][i - 1] and trigger != "BUY":
-                        price = data['close'][i]*1.02
-                        wallet, btc_amount, trigger = buy(wallet, price, btc_amount)
-                        min_sell_price = price
+                    # Setting dynamic thresholds
+                    window_days = pd.Timedelta('30D').days
+                    support_threshold = data['low'].rolling(window=window_days, min_periods=1).min()
+                    resistance_threshold = data['high'].rolling(window=window_days, min_periods=1).min()
 
-                    # Sell trigger
-                    elif data[f'sma-{fix_sma}'][i] < data[f'ema-{ema_value}'][i] and data[f'sma-{fix_sma}'][i - 1] > data[f'ema-{ema_value}'][i -1] and min_sell_price <= data['close'][i] and trigger != "SELL":
-                        price = data['close'][i]*0.98
-                        wallet, btc_amount, trigger = sell(wallet, price, btc_amount)
+                    # Checking thresholds to trigger buy/sell
+                    if data[f'volume'][i] > volume_threshold:
+                        # Buy trigger
+                        if data[f'sma-{fix_sma}'][i] > data[f'ema-{ema_value}'][i] and data[f'sma-{fix_sma}'][i - 1] < data[f'ema-{ema_value}'][i - 1] and data[f'close'][i] > support_threshold[i] and trigger != "BUY":
+                            price = data['close'][i]*1.02
+                            wallet, btc_amount, trigger = buy(wallet, price, btc_amount)
+                            min_sell_price = price
+
+                        # Sell trigger
+                        elif data[f'sma-{fix_sma}'][i] < data[f'ema-{ema_value}'][i] and data[f'sma-{fix_sma}'][i - 1] > data[f'ema-{ema_value}'][i -1] and data[f'close'][i] > resistance_threshold[i] and min_sell_price <= data['close'][i] and trigger != "SELL":
+                            price = data['close'][i]*0.98
+                            wallet, btc_amount, trigger = sell(wallet, price, btc_amount)
 
             # Checking for the best parameters locally
             if wallet > local_best_wallet:
