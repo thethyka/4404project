@@ -76,6 +76,7 @@ def run_simulation(num_ants, Q):
     
     # Run iterations
     for n in range(num_ants):
+        print(f'Ant {n + 1} of {num_ants}')
         # Initialise local best variables for the ant
         local_best_ema_index, local_best_wallet = 0, 0
 
@@ -100,7 +101,7 @@ def run_simulation(num_ants, Q):
             # Buy/Sell BTC depending on conditions set
             for i in range(period):
                 # Initial buy trigger
-                if i == 0: 
+                if i == 0:
                     price = data['open'][i]*1.02
                     wallet, btc_amount, trigger = buy(wallet, price, btc_amount)
                     min_sell_price = price
