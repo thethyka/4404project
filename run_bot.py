@@ -6,21 +6,19 @@ class TradingBot:
         self.data = data
 
         # a dictionary of all parameter options
-        self.parameter_dict = {
-            'SMA_period': None,
-            'EMA_period': None,
-            'resistance_threshold': None,
-            'support_threshold': None,
-            'volume_threshold': None
-
-        }
         
         # a huge list of all parameter dictionaries in search space
         # as of now, parameter list is [SMA period, EMA period, resistance threshold, support threshold, volume threshold]
         self.all_parameters = None
 
         # found once we've optimised - dictionary
-        self.best_parameters = None
+        self.best_parameters = {
+            'SMA_period': None,
+            'EMA_period': None,
+            'resistance_threshold': None,
+            'support_threshold': None,
+            'volume_threshold': None,
+        }
 
         self.period = 720
         self.wallet = 100
