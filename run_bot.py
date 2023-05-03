@@ -48,7 +48,7 @@ class TradingBot:
         volume = self.data['volume']
         open = self.data['open']
 
-        indicator_str = f"{indicator[0]}({indicator[1]}, window={window}).{indicator[2]}"
+        indicator_str = f"{indicator[0]}({indicator[1]}, window={window}, fillna=True).{indicator[2]}"
         return eval(indicator_str)
 
 
