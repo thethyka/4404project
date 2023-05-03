@@ -42,10 +42,6 @@ class ACOOptimiser:
         self.sell_pheremones = [1 for _ in range(2 * len(self.literals))]
         self.normalise_pheremones()
 
-    # Add other ACO functions such as initialise_ants, construct_solution, evaluate_solution, update_pheromone, check_convergence, and extract_best_solution as described in the previous response.
-
-
-
     def normalise_pheremones(self):
         self.buy_pheremones = [x/sum(self.buy_pheremones) for x in self.buy_pheremones]
         self.sell_pheremones = [x/sum(self.sell_pheremones) for x in self.sell_pheremones]
@@ -55,6 +51,11 @@ class ACOOptimiser:
             This function creates an initial population of ants.
             Each ant should have an initial solution (DNF formula) for buy and sell, 
             randomly generated based on the given pheromone probabilities. 
+            Remember, the DNF formula is represented by a list of sets, and each set value is a tuple.
+              
+              [{(indicator1, False), (indicator2, True)}, {indicator3, True}]
+
+            This example above represents the DNF formula: (indicator1 OR indicator2) AND indicator3
             This can be achieved by sampling literals using the probabilities 
             in the buy_pheromones and sell_pheromones.
         """
