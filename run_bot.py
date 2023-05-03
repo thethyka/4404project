@@ -131,7 +131,7 @@ class TradingBot:
     def optimise(self):
         # Uses all paramters to find the best parameters, sets best dnfs accordingly.
         cost_function = lambda buy_dnf, sell_dnf: self.run(buy_dnf, sell_dnf)
-        optimiser = ACOOptimiser(cost_function, self.data, self.literal_dict.keys())
+        optimiser = ACOOptimiser(cost_function, self.literal_dict.keys())
         self.best_buy_dnf_formula, self.best_sell_dnf_formula = optimiser.aco_algorithm()
 
     def execute_buy(self, t):
