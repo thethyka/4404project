@@ -26,10 +26,10 @@ class ACOOptimiser:
         self.pheromone_matrix = None
         self.bot = bot_instance
 
-    def initialise_pheromone_matrix(self):
+    def initialise_pheromone_matrices(self):
         """
-        Initialize the pheromone matrix with rows representing literals
-        and columns representing positions in clauses.
+        Initialize the pheromone matrices each with lenghth num_literals
+        
         Uses num_literals, num_positions
         sets pheremone matrix.
         """
@@ -56,7 +56,7 @@ class ACOOptimiser:
 
     def construct_solution(self, ant):
         """
-        Refine the DNF formula of an ant based on the pheromone matrix and heuristic information.
+        Refine the DNF formula of an ant based on the pheromone matrix.
         Uses ant, pheromone_matrix, alpha, beta
         """
         # Modify the ant's DNF formula using probabilities derived from the pheromone matrix
@@ -98,10 +98,10 @@ class ACOOptimiser:
         Uses num_literals, num_ants, num_iterations, alpha, beta, evaporation_rate, max_clauses
         """
 
-        # Initialize pheromone matrix
+        # Initialise pheromone matrix
         pheromone_matrix = self.initialise_pheromone_matrix()
 
-        # Initialize ants
+        # Initialise ants
         ants = self.initialise_ants()
 
         # Main loop
@@ -110,7 +110,8 @@ class ACOOptimiser:
             solutions_fitness = []
             # Construct solutions
             for ant in ants:
-                self.construct_solution(ant)
+                if iteration > 0:
+                    self.construct_solution(ant)
                 solutions_fitness.append(self.evaluate_solution(ant))
             # Evaluate solutions, need to pass in the trading bot instance?
             

@@ -9,6 +9,7 @@ class TradingBot:
 
         self.all_indicators = [('ta.momentum.KAMAIndicator', 'close', 'kama()'), ('ta.momentum.RSIIndicator', 'close', 'rsi()'), ('ta.momentum.ROCIndicator', 'close', 'roc()'), ('ta.momentum.StochasticOscillator', 'high, low, close', 'stoch()'), ('ta.momentum.StochRSIIndicator', 'close', 'stochrsi()'), ('ta.trend.ADXIndicator', 'high, low, close', 'adx()'), ('ta.trend.AroonIndicator', 'close', 'aroon_indicator()'), ('ta.trend.EMAIndicator', 'close', 'ema_indicator()'), ('ta.trend.SMAIndicator', 'close', 'sma_indicator()'), ('ta.trend.VortexIndicator', 'high, low, close', 'vortex_indicator_diff()'), ('ta.volatility.AverageTrueRange', 'high, low, close', 'average_true_range()'), ('ta.volatility.BollingerBands', 'close', 'bollinger_mavg()'), ('ta.volatility.DonchianChannel', 'high, low, close', 'donchian_channel_mband()'), ('ta.volatility.KeltnerChannel', 'high, low, close', 'keltner_channel_mband()'), ('ta.volatility.UlcerIndex', 'close', 'ulcer_index()'), ('ta.volume.ChaikinMoneyFlowIndicator', 'high, low, close, volume', 'chaikin_money_flow()'), ('ta.volume.EaseOfMovementIndicator', 'high, low, volume', 'ease_of_movement()'), ('ta.volume.ForceIndexIndicator', 'close, volume', 'force_index()'), ('ta.volume.MFIIndicator', 'high, low, close, volume', 'money_flow_index()'), ('ta.volume.VolumeWeightedAveragePrice', 'high, low, close, volume', 'volume_weighted_average_price()')]
 
+        # remember issue of first 20 values for 21 being 0 sometimes.
         self.window_sizes = [7, 21]  # all window size options
 
 
@@ -93,7 +94,7 @@ class TradingBot:
 
     def run(self, buy_dnf_formula, sell_dnf_formula):
         # We haven't bought our bitcoin yet at t=0
-        # Sell and Buy are inplemented by the formulas
+        # Sell and Buy are implemented by the formulas
         bought = False
 
         for t in range(1, self.period):
