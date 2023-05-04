@@ -3,6 +3,7 @@ import ta
 import itertools
 import math
 import warnings
+import subprocess
 
 # Ignore RuntimeWarning caused by invalid value encountered in scalar divide
 warnings.filterwarnings("ignore", category=RuntimeWarning, message="invalid value encountered in scalar divide")
@@ -185,12 +186,15 @@ class TradingBot:
         return final_wallet
 
 # Load your OHLCV data for the past 720 days
+
+
+subprocess.run(['python', 'get_data.py'])
 data = pd.read_csv("aco_data.csv")
 
 # Initialize the trading bot with the data
 bot = TradingBot(data)
 bot.test_indicators()
-bot.optimise()
+# bot.optimise()
 
 
 print(bot.best_buy_dnf_formula)
