@@ -42,7 +42,7 @@ class ACOOptimiser:
         # Current unimproved iteration set to 0 if a best ant is added to list.
         self.max_unimproved_iterations = 50
         self.current_unimproved_iteration = 0
-        self.best_profit = float('-inf')
+
 
         # A list of literals for each key, along with their negations
         self.literals = [(literal, val) for literal in self.literals for val in [True, False]]
