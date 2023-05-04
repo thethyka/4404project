@@ -89,9 +89,9 @@ class ACOOptimiser:
         if ant.buy_dnf is None:
             return None
         return self.cost_function(ant.buy_dnf, ant.sell_dnf)-100
+ 
 
-
-    def update_pheromone(self, profits):
+    def update_pheromone(self, profits): 
         """
             This function updates the pheromone levels of the buy and sell matrices based on the profit values of the ants' solutions.
             The evaporation_rate, alpha, and beta parameters should be used to control the pheromone update process.
