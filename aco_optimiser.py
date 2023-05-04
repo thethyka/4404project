@@ -10,7 +10,6 @@ class Ant:
         self.sell_dnf = sell_dnf
 
 
-
 # Define the ACOOptimiser class to run the ACO algorithm
 class ACOOptimiser:
     def __init__(self, cost_function, keys):
@@ -20,14 +19,14 @@ class ACOOptimiser:
         self.cost_function = cost_function
         self.literals = list(keys)
 
-        self.num_iterations = 1
+        self.num_iterations = 10
         self.alpha = None
         self.beta = None
         self.evaporation_rate = None
         
         self.average_clauses = 2
-        self.average_literals = 2
-        self.num_ants = 500
+        self.average_literals = 1
+        self.num_ants = 1
 
 
         # All our ants for the ACO algorithm
@@ -49,6 +48,12 @@ class ACOOptimiser:
         self.buy_pheremones = [1 for _ in range(len(self.literals))]
         self.sell_pheremones = [1 for _ in range(len(self.literals))]
         self.normalise_pheremones()
+
+
+        # self.operator_success = {"add": 1, "remove": 1, "change": 1}
+        # self.operator_probabilities = []
+        self.clause_mutation_rate = 0.5
+
 
     def normalise_pheremones(self):
         self.buy_pheremones = [x/sum(self.buy_pheremones) for x in self.buy_pheremones]
@@ -101,7 +106,42 @@ class ACOOptimiser:
         The new solution should respect the max_clauses constraint.
         """
         # Modify the ant's DNF formula using probabilities derived from the pheromone matrix
-        pass
+        
+        #can make probabilites only be calculated each iteration if too slow
+        def add_literal(clause, is_buy):
+            if len(clause) < len(self.literals):
+                new_literal = self.generate_random_literal(is_buy)
+                while new_literal in clause:
+                    new_literal = self.generate_random_literal(is_buy)
+                clause.add(new_literal)
+
+        def remove_literal(clause):
+            if len(clause) > 1:
+                clause.remove(random.choice(list(clause)))
+
+        def change_literal(clause, is_buy):
+            if len(clause) > 0:
+                literal_to_replace = random.choice(list(clause))
+                clause.remove(literal_to_replace)
+                add_literal(clause, is_buy)
+
+    
+        for dnf_type in ["buy", "sell"]:
+            dnf = ant.buy_dnf if dnf_type == "buy" else ant.sell_dnf
+            for clause in dnf:
+
+                if random.random() > self.clause_mutation_rate:
+                    continue
+
+                operator = np.random.choice(["add", "remove", "change"])
+                if operator == "add":
+                    add_literal(clause, dnf_type == "buy")
+                elif operator == "remove":
+                    remove_literal(clause)
+                elif operator == "change":
+                    change_literal(clause, dnf_type == "buy")
+        
+    
 
     def evaluate_ant(self, ant):
         """
@@ -110,7 +150,15 @@ class ACOOptimiser:
         """
         if ant.buy_dnf is None:
             return None
-        return self.cost_function(ant.buy_dnf, ant.sell_dnf)-100
+        
+        profit = self.cost_function(ant.buy_dnf, ant.sell_dnf) - 100
+
+        # only if we want operator probabilites
+        # if profit > ant.profit:
+        #     self.operator_success[ant.operator] += (profit - ant.profit)
+        # ant.profit = profit
+
+        return profit
  
 
     def update_pheromone(self, profits): 
@@ -163,12 +211,18 @@ class ACOOptimiser:
 
         for iteration in range(self.num_iterations):
             profits = []
+
             # Construct solutions
             for i, ant in enumerate(self.ants):
-                print(f"Ant {i+1} of {len(self.ants)}")
+                print(f"Ant {i+1} of {len(self.ants)} for iteration {iteration+1} of {self.num_iterations}")
                 if iteration > 0:
                     self.construct_solution(ant)
                 profits.append(self.evaluate_ant(ant))
+                print(ant.buy_dnf)
+                print(ant.sell_dnf)
+            
+            print(profits)
+            
 
             # Update pheromone levels
             self.update_pheromone(profits)
