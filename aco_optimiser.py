@@ -61,11 +61,11 @@ class ACOOptimiser:
             This function creates an initial population of ants.
             Each ant should have an initial solution (DNF formula) for buy and sell, 
             randomly generated based on the given pheromone probabilities. 
-            Remember, the DNF formula is represented by a list of sets, and each set value is a tuple.
+            Remember, the DNF formula is represented by a list of sets, and each set value is one of our literals.
               
-              [{(indicator1, False), (indicator2, True)}, {indicator3, True}]
+              [{literal[5], literals[9]}, {literals[25]}]
 
-            This example above represents the DNF formula: (not indicator1 OR indicator2) AND indicator3
+            This example above represents the DNF formula: (literal5 OR literal9) AND literal25
             This can be achieved by sampling literals using the probabilities 
             in the buy_pheromones and sell_pheromones.
         """
@@ -129,7 +129,10 @@ class ACOOptimiser:
         """
         Run the ACO algorithm for the given number of iterations and return the best DNF formula.
         """
-        
+        #test
+        #return [{self.literals[1], self.literals[6]}, {self.literals[15]}], "pee"
+
+
         # Initialise ants
         self.initialise_ants()
 
