@@ -130,7 +130,7 @@ class ACOOptimiser:
         Run the ACO algorithm for the given number of iterations and return the best DNF formula.
         """
         #test
-        #return [{self.literals[1], self.literals[6]}, {self.literals[15]}], "pee"
+        #return [{self.literals[1], self.literals[6]}, {self.literals[15]}], [{self.literals[12]}, {self.literals[6], self.literals[1]}]
 
 
         # Initialise ants
