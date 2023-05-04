@@ -31,6 +31,11 @@ class ACOOptimiser:
         self.evaporation_rate = None
         self.max_clauses = 10
 
+        # Set the parameters for checking convergence
+        self.max_no_improvement_iterations = 50
+        self.current_no_improvement_iterations = 0
+        self.best_fitness = float('inf')
+
         # Create a list of ant objects
         self.ants = [Ant() for _ in range(self.num_ants)]
 
@@ -97,20 +102,39 @@ class ACOOptimiser:
         and then extract the corresponding buy and sell DNFs from the ant.
         """
 
-        # Find the ant with the highest fitness solution
-        pass
+        # Find the index of the ant with the best (lowest) fitness solution
+        best_ant_index = np.argmin(solutions_fitness)
+
+        # Extract the best buy and sell DNF formulas from the ant with the best solution
+        best_buy_dnf_formula = self.ants[best_ant_index].buy_dnf
+        best_sell_dnf_formula = self.ants[best_ant_index].sell_dnf
+
+        return best_buy_dnf_formula, best_sell_dnf_formula
 
         # uncomment this below and run run_bot.py to see the output of the algorithm.
         #return [{(self.literals[1], True), (self.literals[2], False)}], [{(self.literals[0], True), (self.literals[2], False)}]
 
     def check_convergence(self):
         """
-        
         This function checks if the algorithm has converged based on some stopping criteria
         (e.g., a max cost value or a maximum number of iterations without improvement).
         If the stopping criteria are met, the function returns True; otherwise, it returns False.
         """
-        pass
+        # Find the best fitness value among all ants
+        current_best_fitness = min([self.evaluate_solution(ant) for ant in self.ants])
+
+        # Check if the best fitness value has improved compared to the previous iteration
+        if current_best_fitness < self.best_fitness:
+            self.best_fitness = current_best_fitness
+            self.current_no_improvement_iterations = 0
+        else:
+            self.current_no_improvement_iterations += 1
+
+        # Check if the maximum number of iterations without improvement has been reached
+        if self.current_no_improvement_iterations >= self.max_no_improvement_iterations:
+            return True
+        else:
+            return False
 
     def aco_algorithm(self):
         """
