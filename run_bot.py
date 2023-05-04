@@ -137,15 +137,15 @@ class TradingBot:
     def execute_buy(self, t):
         print(f"Buy at t={t}")
         # Execute buy order
-        price = self.data['open'][t]*1.02
-        self.btc = self.wallet / price       
+        price = self.data['open'][t]
+        self.btc = self.wallet*0.98 / price       
         self.wallet = 0
 
     def execute_sell(self, t):        
         print(f"Sell at t={t}")
         # Execute sell order
-        price = self.data['close'][t]*0.98
-        self.wallet = self.btc * price
+        price = self.data['close'][t]
+        self.wallet = self.btc*0.98 * price
         self.btc = 0
 
 
@@ -189,8 +189,9 @@ data = pd.read_csv("aco_data.csv")
 
 # Initialize the trading bot with the data
 bot = TradingBot(data)
-
+bot.test_indicators()
 bot.optimise()
+
 
 print(bot.best_buy_dnf_formula)
 print(bot.best_sell_dnf_formula)
