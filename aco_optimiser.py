@@ -1,5 +1,7 @@
 import numpy as np
 import copy
+import random 
+
 # Define the Ant class to represent an individual ant in the ACO algorithm
 class Ant:
     def __init__(self, buy_dnf=None, sell_dnf=None):
@@ -7,13 +9,6 @@ class Ant:
         self.buy_dnf = buy_dnf
         self.sell_dnf = sell_dnf
 
-    def set_buy_dnf(self, buy_dnf):
-        # Set the buy DNF for the ant
-        self.buy_dnf = buy_dnf
-
-    def set_sell_dnf(self, sell_dnf):
-        # Set the sell DNF for the ant
-        self.sell_dnf = sell_dnf
 
 
 # Define the ACOOptimiser class to run the ACO algorithm
@@ -24,12 +19,15 @@ class ACOOptimiser:
         # Set the parameters for the ACO algorithm
         self.cost_function = cost_function
         self.literals = list(keys)
-        self.num_ants = 10
+
         self.num_iterations = 1
         self.alpha = None
         self.beta = None
         self.evaporation_rate = None
-        self.max_clauses = 10
+        
+        self.average_clauses = 2
+        self.average_literals = 2
+        self.num_ants = 500
 
 
         # All our ants for the ACO algorithm
@@ -48,8 +46,8 @@ class ACOOptimiser:
         self.literals = [(literal, val) for literal in self.literals for val in [True, False]]
 
         # Initialize the pheromone values for buy and sell literals
-        self.buy_pheremones = [1 for _ in range(2 * len(self.literals))]
-        self.sell_pheremones = [1 for _ in range(2 * len(self.literals))]
+        self.buy_pheremones = [1 for _ in range(len(self.literals))]
+        self.sell_pheremones = [1 for _ in range(len(self.literals))]
         self.normalise_pheremones()
 
     def normalise_pheremones(self):
@@ -66,11 +64,35 @@ class ACOOptimiser:
               [{literal[5], literals[9]}, {literals[25]}]
 
             This example above represents the DNF formula: (literal5 OR literal9) AND literal25
-            This can be achieved by sampling literals using the probabilities 
-            in the buy_pheromones and sell_pheromones.
+            
+            Uses max clauses, randomly picks 
         """
         # Create a list of ants with random DNF formulas
-        pass
+
+        for ant in self.ants:
+            buy_dnf = self.generate_random_dnf_expression(True)
+            sell_dnf = self.generate_random_dnf_expression(False)
+            ant.buy_dnf = buy_dnf
+            ant.sell_dnf = sell_dnf
+        
+
+    def generate_random_clause(self, is_buy):
+        clause_length = max(1, int(random.gauss(self.average_literals, self.average_literals / 2)))
+        clause = {self.generate_random_literal(is_buy)}
+        while len(clause) < clause_length:
+            clause.add(self.generate_random_literal(is_buy))
+        return clause
+    
+    def generate_random_literal(self, is_buy):
+        pheromones = self.buy_pheremones if is_buy else self.sell_pheremones
+        return random.choices(self.literals, weights=pheromones, k=1)[0]
+
+    def generate_random_dnf_expression(self, is_buy):
+        num_clauses = max(1, int(random.gauss(self.average_clauses, self.average_clauses / 2)))
+        expression = [self.generate_random_clause(is_buy)]
+        for _ in range(1, num_clauses):
+            expression.append(self.generate_random_clause(is_buy))
+        return expression
 
     def construct_solution(self, ant):
         """
@@ -138,10 +160,12 @@ class ACOOptimiser:
 
         # Main loop
         
+
         for iteration in range(self.num_iterations):
             profits = []
             # Construct solutions
-            for ant in self.ants:
+            for i, ant in enumerate(self.ants):
+                print(f"Ant {i+1} of {len(self.ants)}")
                 if iteration > 0:
                     self.construct_solution(ant)
                 profits.append(self.evaluate_ant(ant))
@@ -151,7 +175,13 @@ class ACOOptimiser:
 
             # Update best ant if its the best we've ever found, 
             #   otherwise increment the iteration if no new best ant is found
+
+            # print p to 2 decimal places
+            # for p in profits:
+            #     print("{:.2f}".format(p))
+
             self.update_best_ant(profits)
+
 
             # Check convergence 
             if self.current_unimproved_iteration == self.max_unimproved_iterations:

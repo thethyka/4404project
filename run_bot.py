@@ -136,14 +136,14 @@ class TradingBot:
         self.best_buy_dnf_formula, self.best_sell_dnf_formula = optimiser.aco_algorithm()
 
     def execute_buy(self, t):
-        print(f"Buy at t={t}")
+        #print(f"Buy at t={t}")
         # Execute buy order
         price = self.data['open'][t]
         self.btc = self.wallet*0.98 / price       
         self.wallet = 0
 
     def execute_sell(self, t):        
-        print(f"Sell at t={t}")
+        #print(f"Sell at t={t}")
         # Execute sell order
         price = self.data['close'][t]
         self.wallet = self.btc*0.98 * price
@@ -191,12 +191,19 @@ data = pd.read_csv("aco_data.csv")
 
 # Initialize the trading bot with the data
 bot = TradingBot(data)
-bot.test_indicators()
+# bot.test_indicators()
+
+
 bot.optimise()
-
-
 print(bot.best_buy_dnf_formula)
 print(bot.best_sell_dnf_formula)
+print(bot.run(bot.best_buy_dnf_formula, bot.best_sell_dnf_formula))
+
+# buy = [{('EaseOfMovementIndicator_7_21', True), ('ROCIndicator_7_21', False), ('ForceIndexIndicator_7_21', False)}, {('RSIIndicator_7_21', True)}, {('VortexIndicator_7_21', True)}]
+# sell = [{('DonchianChannel_7_21', True), ('VortexIndicator_7_21', True)}, {('BollingerBands_7_21', False)}]
+# print(bot.run(buy, sell))
+
+
 # Optimize the bot's parameters and logical expressions
 # bot.optimise()
 
