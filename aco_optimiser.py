@@ -1,5 +1,5 @@
 import numpy as np
-
+import copy
 # Define the Ant class to represent an individual ant in the ACO algorithm
 class Ant:
     def __init__(self, buy_dnf=None, sell_dnf=None):
@@ -31,15 +31,20 @@ class ACOOptimiser:
         self.evaporation_rate = None
         self.max_clauses = 10
 
-        # Set the parameters for checking convergence
-        self.max_no_improvement_iterations = 50
-        self.current_no_improvement_iterations = 0
-        self.best_fitness = float('inf')
 
-        # Create a list of ant objects
+        # All our ants for the ACO algorithm
         self.ants = [Ant() for _ in range(self.num_ants)]
 
-        # Create a list of literals for each key, along with their negations
+        # A list of our best-found ants while optimising.
+        self.best_ants = []
+
+        # Set the parameters for checking convergence
+        # Current unimproved iteration set to 0 if a best ant is added to list.
+        self.max_unimproved_iterations = 50
+        self.current_unimproved_iteration = 0
+        self.best_profit = float('-inf')
+
+        # A list of literals for each key, along with their negations
         self.literals = [(literal, val) for literal in self.literals for val in [True, False]]
 
         # Initialize the pheromone values for buy and sell literals
@@ -60,7 +65,7 @@ class ACOOptimiser:
               
               [{(indicator1, False), (indicator2, True)}, {indicator3, True}]
 
-            This example above represents the DNF formula: (indicator1 OR indicator2) AND indicator3
+            This example above represents the DNF formula: (not indicator1 OR indicator2) AND indicator3
             This can be achieved by sampling literals using the probabilities 
             in the buy_pheromones and sell_pheromones.
         """
@@ -76,72 +81,54 @@ class ACOOptimiser:
         # Modify the ant's DNF formula using probabilities derived from the pheromone matrix
         pass
 
-    def evaluate_solution(self, ant):
+    def evaluate_ant(self, ant):
         """
         Evaluate a DNF formula using the provided cost function.
+        Result is subtracted by 100 to represent profit vs loss.
         """
         if ant.buy_dnf is None:
             return None
-        return self.cost_function(ant.buy_dnf, ant.sell_dnf)
+        return self.cost_function(ant.buy_dnf, ant.sell_dnf)-100
 
 
-    def update_pheromone(self, solutions_fitness):
+    def update_pheromone(self, profits):
         """
-            This function updates the pheromone levels of the buy and sell matrices based on the fitness values of the ants' solutions.
+            This function updates the pheromone levels of the buy and sell matrices based on the profit values of the ants' solutions.
             The evaporation_rate, alpha, and beta parameters should be used to control the pheromone update process.
             Normalise the matrices after updating the pheromone levels.
         """
         # Update the pheromone levels and apply evaporation
         pass
 
-    def extract_best_solution(self, solutions_fitness):
+    def update_best_ant(self, profits):
         """
-        This function finds and returns the best solution (buy and sell DNFs) among all ants
-        based on the fitness values in solutions_fitness.
-        You can use the argmin() function from NumPy to find the index of the minimum fitness value
-        and then extract the corresponding buy and sell DNFs from the ant.
+        This function updates our best ants array and adds the best ant if its better than all other best ants.
+        It also updates our iteration if we haven't improved.
         """
 
-        # Find the index of the ant with the best (lowest) fitness solution
-        best_ant_index = np.argmin(solutions_fitness)
+        # Find the index of the ant with the best profit.
+        best_ant_index = np.argmax(profits)
 
-        # Extract the best buy and sell DNF formulas from the ant with the best solution
-        best_buy_dnf_formula = self.ants[best_ant_index].buy_dnf
-        best_sell_dnf_formula = self.ants[best_ant_index].sell_dnf
+        # Check if the best ant has a better profit than the previous best ant
+        # If best ants is empty, then we always add an ant.
+        is_new_ant_better = (
+            len(self.best_ants) == 0 or
+            self.evaluate_ant(self.best_ants[-1]) < self.evaluate_ant(self.ants[best_ant_index])
+        )
 
-        return best_buy_dnf_formula, best_sell_dnf_formula
-
-        # uncomment this below and run run_bot.py to see the output of the algorithm.
-        #return [{(self.literals[1], True), (self.literals[2], False)}], [{(self.literals[0], True), (self.literals[2], False)}]
-
-    def check_convergence(self):
-        """
-        This function checks if the algorithm has converged based on some stopping criteria
-        (e.g., a max cost value or a maximum number of iterations without improvement).
-        If the stopping criteria are met, the function returns True; otherwise, it returns False.
-        """
-        # Find the best fitness value among all ants
-        current_best_fitness = min([self.evaluate_solution(ant) for ant in self.ants])
-
-        # Check if the best fitness value has improved compared to the previous iteration
-        if current_best_fitness < self.best_fitness:
-            self.best_fitness = current_best_fitness
-            self.current_no_improvement_iterations = 0
+        # Update the best ants and current unimproved iteration
+        if is_new_ant_better:
+            ant_instance = copy.deepcopy(self.ants[best_ant_index])
+            self.best_ants.append(ant_instance)
+            self.current_unimproved_iteration = 0
         else:
-            self.current_no_improvement_iterations += 1
+            self.current_unimproved_iteration += 1
 
-        # Check if the maximum number of iterations without improvement has been reached
-        if self.current_no_improvement_iterations >= self.max_no_improvement_iterations:
-            return True
-        else:
-            return False
 
     def aco_algorithm(self):
         """
         Run the ACO algorithm for the given number of iterations and return the best DNF formula.
-        Uses num_literals, num_ants, num_iterations, alpha, beta, evaporation_rate, max_clauses
         """
-        
         
         # Initialise ants
         self.initialise_ants()
@@ -149,23 +136,27 @@ class ACOOptimiser:
         # Main loop
         
         for iteration in range(self.num_iterations):
-            solutions_fitness = []
+            profits = []
             # Construct solutions
             for ant in self.ants:
                 if iteration > 0:
                     self.construct_solution(ant)
-                solutions_fitness.append(self.evaluate_solution(ant))
-            # Evaluate solutions, need to pass in the trading bot instance?
-            
+                profits.append(self.evaluate_ant(ant))
 
             # Update pheromone levels
-            self.update_pheromone(solutions_fitness)
+            self.update_pheromone(profits)
 
-            if self.check_convergence():
+            # Update best ant if its the best we've ever found, 
+            #   otherwise increment the iteration if no new best ant is found
+            self.update_best_ant(profits)
+
+            # Check convergence 
+            if self.current_unimproved_iteration == self.max_unimproved_iterations:
                 break
 
-        # Extract the best solution
-        best_buy_dnf_formula, best_sell_dnf_formula = self.extract_best_solution(solutions_fitness)
+        # Extract the best solution, which is the most recent best ant.
+        best_buy_dnf_formula = self.best_ants[-1].buy_dnf
+        best_sell_dnf_formula = self.best_ants[-1].sell_dnf
 
         return (best_buy_dnf_formula, best_sell_dnf_formula)
 
