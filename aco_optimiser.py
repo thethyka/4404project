@@ -8,7 +8,9 @@ class Ant:
         # Initialize the ant with optional buy and sell DNFs
         self.buy_dnf = buy_dnf
         self.sell_dnf = sell_dnf
-
+        self.money = 0
+    def __str__(self):
+        return "Buy DNF: " + str(self.buy_dnf) + "\nSell DNF: " + str(self.sell_dnf)
 
 # Define the ACOOptimiser class to run the ACO algorithm
 class ACOOptimiser:
@@ -19,14 +21,15 @@ class ACOOptimiser:
         self.cost_function = cost_function
         self.literals = list(keys)
 
-        self.num_iterations = 10
-        self.alpha = None
-        self.beta = None
-        self.evaporation_rate = None
+        self.num_iterations = 30
+
+        self.alpha = 2
+        self.beta = 3
+        self.evaporation_rate = 0.1
         
-        self.average_clauses = 2
-        self.average_literals = 1
-        self.num_ants = 1
+        self.average_clauses = 5
+        self.average_literals = 5
+        self.num_ants = 50
 
 
         # All our ants for the ACO algorithm
@@ -45,9 +48,9 @@ class ACOOptimiser:
         self.literals = [(literal, val) for literal in self.literals for val in [True, False]]
 
         # Initialize the pheromone values for buy and sell literals
-        self.buy_pheremones = [1 for _ in range(len(self.literals))]
-        self.sell_pheremones = [1 for _ in range(len(self.literals))]
-        self.normalise_pheremones()
+        self.buy_pheromones = [1 for _ in range(len(self.literals))]
+        self.sell_pheromones = [1 for _ in range(len(self.literals))]
+        self.normalise_pheromones()
 
 
         # self.operator_success = {"add": 1, "remove": 1, "change": 1}
@@ -55,9 +58,9 @@ class ACOOptimiser:
         self.clause_mutation_rate = 0.5
 
 
-    def normalise_pheremones(self):
-        self.buy_pheremones = [x/sum(self.buy_pheremones) for x in self.buy_pheremones]
-        self.sell_pheremones = [x/sum(self.sell_pheremones) for x in self.sell_pheremones]
+    def normalise_pheromones(self):
+        self.buy_pheromones = [x/sum(self.buy_pheromones) for x in self.buy_pheromones]
+        self.sell_pheromones = [x/sum(self.sell_pheromones) for x in self.sell_pheromones]
 
     def initialise_ants(self):
         """
@@ -89,7 +92,7 @@ class ACOOptimiser:
         return clause
     
     def generate_random_literal(self, is_buy):
-        pheromones = self.buy_pheremones if is_buy else self.sell_pheremones
+        pheromones = self.buy_pheromones if is_buy else self.sell_pheromones
         return random.choices(self.literals, weights=pheromones, k=1)[0]
 
     def generate_random_dnf_expression(self, is_buy):
@@ -156,19 +159,41 @@ class ACOOptimiser:
         # only if we want operator probabilites
         # if profit > ant.profit:
         #     self.operator_success[ant.operator] += (profit - ant.profit)
-        # ant.profit = profit
+        
+        ant.money = profit + 100
 
         return profit
  
 
-    def update_pheromone(self, profits): 
+    def update_pheromones(self): 
         """
             This function updates the pheromone levels of the buy and sell matrices based on the profit values of the ants' solutions.
             The evaporation_rate, alpha, and beta parameters should be used to control the pheromone update process.
             Normalise the matrices after updating the pheromone levels.
         """
         # Update the pheromone levels and apply evaporation
-        pass
+        # Calculate the total money made by all ants.
+        total_money = sum(ant.money for ant in self.ants)
+
+        # Update pheromone levels for both buy and sell lists
+        for dnf_type in ["buy", "sell"]:
+            pheromones = self.buy_pheromones if dnf_type == "buy" else self.sell_pheromones
+            for i in range(len(pheromones)):
+                # Evaporate the pheromone
+                pheromones[i] *= (1 - self.evaporation_rate)
+
+                # Update the pheromone based on the ants' profits
+                for ant in self.ants:
+                    dnf = ant.buy_dnf if dnf_type == "buy" else ant.sell_dnf
+                    literal_presence = sum([1 for clause in dnf if self.literals[i] in clause])
+                    if literal_presence > 0:
+                        contribution = (ant.money / total_money) ** self.alpha * (1 / (1 + literal_presence)) ** self.beta
+                        pheromones[i] += contribution
+
+        # Normalize the pheromone levels in the list
+        self.normalise_pheromones()
+
+        
 
     def update_best_ant(self, profits):
         """
@@ -218,15 +243,16 @@ class ACOOptimiser:
                 if iteration > 0:
                     self.construct_solution(ant)
                 profits.append(self.evaluate_ant(ant))
-                print(ant.buy_dnf)
-                print(ant.sell_dnf)
+
             
             print(profits)
             
 
             # Update pheromone levels
-            self.update_pheromone(profits)
+            self.update_pheromones()
 
+            print(self.buy_pheromones)
+            print(self.sell_pheromones)
             # Update best ant if its the best we've ever found, 
             #   otherwise increment the iteration if no new best ant is found
 
