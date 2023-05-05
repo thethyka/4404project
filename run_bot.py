@@ -1,9 +1,12 @@
 import pandas as pd
+import numpy as np
 import ta
 import itertools
 import math
 import warnings
 import subprocess
+from aco_optimiser import Ant
+
 
 # Ignore RuntimeWarning caused by invalid value encountered in scalar divide
 warnings.filterwarnings("ignore", category=RuntimeWarning, message="invalid value encountered in scalar divide")
@@ -61,7 +64,10 @@ class TradingBot:
 
         # Window issue prevented by evaluating literals with NaN as false.
         self.window_sizes = [7, 21]  # all window size options, ascending order.
+        self.period = len(data)
 
+        if(max(self.window_sizes) >= self.period):
+            raise Exception("Window size is larger than data period.")
 
         ### ONLY IF WE WANT TO ADD TYPES OF INDICATORS ###
         # self.options = {
@@ -75,16 +81,14 @@ class TradingBot:
         #     'volume': [('ta.volume.ChaikinMoneyFlowIndicator', 'high, low, close, volume', 'chaikin_money_flow()'), ('ta.volume.EaseOfMovementIndicator', 'high, low, volume', 'ease_of_movement()'), ('ta.volume.ForceIndexIndicator', 'close, volume', 'force_index()'), ('ta.volume.MFIIndicator', 'high, low, close, volume', 'money_flow_index()'), ('ta.volume.VolumeWeightedAveragePrice', 'high, low, close, volume', 'volume_weighted_average_price()')],           
         # }
 
-        # dnf formula represented by a list of lists. Each list is a clause and the elements of the list are the literals. Each literal is a tuple of (indicator, window1, window2, 0/1 (greater than or less than))
-        self.best_buy_dnf_formula = None
-        self.best_sell_dnf_formula = None
-
+     
 
         self.literal_dict = self.set_literal_dict()
 
-        self.period = 720
         self.wallet = 100
         self.btc = 0
+
+        self.best_ants = []
 
     def test_indicators(self):
         # runs through each indicator to verify they're all valid and working.
@@ -133,7 +137,8 @@ class TradingBot:
         # Uses all paramters to find the best parameters, sets best dnfs accordingly.
         cost_function = lambda buy_dnf, sell_dnf: self.run(buy_dnf, sell_dnf)
         optimiser = ACOOptimiser(cost_function, self.literal_dict.keys())
-        self.best_buy_dnf_formula, self.best_sell_dnf_formula = optimiser.aco_algorithm()
+        self.best_ants = optimiser.aco_algorithm()
+
 
     def execute_buy(self, t):
         #print(f"Buy at t={t}")
@@ -186,18 +191,84 @@ class TradingBot:
         return final_wallet
 
 # Load your OHLCV data for the past 720 days
-subprocess.run(['python', 'get_data.py'])
+
+#subprocess.run(['python', 'get_data.py'])
 data = pd.read_csv("aco_data.csv")
 
+
+data_points = len(data)
+train_ratio = 0.2
+validation_ratio = 0.4
+test_ratio = 0.4
+
+# Split the data into train, validation, and test sets
+train_size = int(data_points * train_ratio)
+validation_size = int(data_points * validation_ratio)
+test_size = data_points - (train_size + validation_size)
+
+train_data = data[:train_size]
+validation_data = data[train_size:train_size + validation_size].reset_index(drop=True)
+test_data = data[train_size + validation_size:].reset_index(drop=True)
+
+# Train and validate the ACO model
+n_runs = 5
+all_best_ants = []
+all_performances = []
+
+test_bot = TradingBot(test_data)
+for i in range(n_runs):
+    print(f"Run {i+1} of {n_runs}")
+
+    # Train the ACO model on the train_data
+    train_bot = TradingBot(train_data)
+    val_bot = TradingBot(validation_data)
+
+    train_bot.optimise()
+    best_ants = train_bot.best_ants
+
+    # use top 5 ants to validate
+    if(len(best_ants) > 5):
+        best_ants = best_ants[-5:]
+
+    for ant in best_ants:
+        print(ant.buy_dnf)
+        print(ant.sell_dnf)
+        all_performances.append(val_bot.run(ant.buy_dnf, ant.sell_dnf))
+
+    all_best_ants.extend(best_ants)
+    
+
+# Fine-tune hyperparameters if needed, and repeat the training and validation process
+
+ants_and_scores = list(zip(all_best_ants, all_performances))
+
+sorted_ants_and_scores = sorted(ants_and_scores, key=lambda x: x[1], reverse=True)
+
+if (len(sorted_ants_and_scores) >= 3):
+    top_3_ants = [ant_score[0] for ant_score in sorted_ants_and_scores[:3]]
+
+    ant_1_perf = test_bot.run(top_3_ants[0].buy_dnf, top_3_ants[0].sell_dnf)
+    ant_2_perf = test_bot.run(top_3_ants[1].buy_dnf, top_3_ants[1].sell_dnf)
+    ant_3_perf = test_bot.run(top_3_ants[2].buy_dnf, top_3_ants[2].sell_dnf)
+
+    print(f"Ant 1 performance: {ant_1_perf}")
+    print(f"Ant 2 performance: {ant_2_perf}")
+    print(f"Ant 3 performance: {ant_3_perf}")
+
+else:
+    perf = test_bot.run(sorted_ants_and_scores[0][0].buy_dnf, sorted_ants_and_scores[0][0].sell_dnf)
+    print(f"Best Ant Performance: {perf}")
+
+
 # Initialize the trading bot with the data
-bot = TradingBot(data)
+# bot = TradingBot(data)
 # bot.test_indicators()
 
 
-bot.optimise()
-print(bot.best_buy_dnf_formula)
-print(bot.best_sell_dnf_formula)
-print(bot.run(bot.best_buy_dnf_formula, bot.best_sell_dnf_formula))
+# bot.optimise()
+# print(bot.best_buy_dnf_formula)
+# print(bot.best_sell_dnf_formula)
+# print(bot.run(bot.best_buy_dnf_formula, bot.best_sell_dnf_formula))
 
 # buy = [{('EaseOfMovementIndicator_7_21', True), ('ROCIndicator_7_21', False), ('ForceIndexIndicator_7_21', False)}, {('RSIIndicator_7_21', True)}, {('VortexIndicator_7_21', True)}]
 # sell = [{('DonchianChannel_7_21', True), ('VortexIndicator_7_21', True)}, {('BollingerBands_7_21', False)}]

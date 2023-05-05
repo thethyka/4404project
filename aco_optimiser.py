@@ -2,6 +2,9 @@ import numpy as np
 import copy
 import random 
 
+
+
+
 # Define the Ant class to represent an individual ant in the ACO algorithm
 class Ant:
     def __init__(self, buy_dnf=None, sell_dnf=None):
@@ -21,15 +24,20 @@ class ACOOptimiser:
         self.cost_function = cost_function
         self.literals = list(keys)
 
-        self.num_iterations = 30
+
+        # self.operator_success = {"add": 1, "remove": 1, "change": 1}
+        # self.operator_probabilities = []
+        self.clause_mutation_rate = 0.5
 
         self.alpha = 2
         self.beta = 3
         self.evaporation_rate = 0.1
         
-        self.average_clauses = 5
-        self.average_literals = 5
+        self.average_clauses = 4
+        self.average_literals = 3
         self.num_ants = 50
+        self.num_iterations = 40
+
 
 
         # All our ants for the ACO algorithm
@@ -53,9 +61,7 @@ class ACOOptimiser:
         self.normalise_pheromones()
 
 
-        # self.operator_success = {"add": 1, "remove": 1, "change": 1}
-        # self.operator_probabilities = []
-        self.clause_mutation_rate = 0.5
+
 
 
     def normalise_pheromones(self):
@@ -245,14 +251,16 @@ class ACOOptimiser:
                 profits.append(self.evaluate_ant(ant))
 
             
-            print(profits)
+            # print(profits)
             
 
             # Update pheromone levels
             self.update_pheromones()
 
-            print(self.buy_pheromones)
-            print(self.sell_pheromones)
+            # print(self.buy_pheromones)
+            # print(self.sell_pheromones)
+
+
             # Update best ant if its the best we've ever found, 
             #   otherwise increment the iteration if no new best ant is found
 
@@ -268,9 +276,8 @@ class ACOOptimiser:
                 break
 
         # Extract the best solution, which is the most recent best ant.
-        best_buy_dnf_formula = self.best_ants[-1].buy_dnf
-        best_sell_dnf_formula = self.best_ants[-1].sell_dnf
-
-        return (best_buy_dnf_formula, best_sell_dnf_formula)
+        # best_buy_dnf_formula = self.best_ants[-1].buy_dnf
+        # best_sell_dnf_formula = self.best_ants[-1].sell_dnf
+        return self.best_ants
 
 
