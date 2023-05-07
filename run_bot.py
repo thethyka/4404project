@@ -211,7 +211,7 @@ validation_data = data[train_size:train_size + validation_size].reset_index(drop
 test_data = data[train_size + validation_size:].reset_index(drop=True)
 
 # Train and validate the ACO model
-n_runs = 5
+n_runs = 2
 all_best_ants = []
 all_performances = []
 

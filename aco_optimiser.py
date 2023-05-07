@@ -29,15 +29,21 @@ class ACOOptimiser:
         # self.operator_probabilities = []
         self.clause_mutation_rate = 0.5
 
+        # Controls the influence of pheromone trails on ant decisions
         self.alpha = 2
+        # Controls the influence of heuristic information on ant decisions
         self.beta = 3
+        # Determines the rate at which pheromone trails evaporate over time
         self.evaporation_rate = 0.1
-        
-        self.average_clauses = 4
-        self.average_literals = 3
-        self.num_ants = 50
-        self.num_iterations = 40
 
+        # Represents the average number of clauses in the DNF formulas
+        self.average_clauses = 2
+        # Represents the average number of literals in each clause of the DNF formulas
+        self.average_literals = 2
+        # Represents the number of ants in the ant colony optimization algorithm
+        self.num_ants = 5
+        # Represents the number of iterations the ant colony optimization algorithm will run for
+        self.num_iterations = 100
 
 
         # All our ants for the ACO algorithm
@@ -255,6 +261,7 @@ class ACOOptimiser:
             
 
             # Update pheromone levels
+            
             self.update_pheromones()
 
             # print(self.buy_pheromones)
