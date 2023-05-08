@@ -1,3 +1,7 @@
 pandas
 ta
 ccxt
+plotly
+matplotlib
+scikit-learn
+ipykernel

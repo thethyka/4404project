@@ -17,7 +17,7 @@ class Ant:
 
 # Define the ACOOptimiser class to run the ACO algorithm
 class ACOOptimiser:
-    def __init__(self, cost_function, keys):
+    def __init__(self, cost_function, keys, acoparams):
         # Initialize the ACOOptimiser with a cost function and literal keys
 
         # Set the parameters for the ACO algorithm
@@ -25,25 +25,25 @@ class ACOOptimiser:
         self.literals = list(keys)
 
 
-        # self.operator_success = {"add": 1, "remove": 1, "change": 1}
-        # self.operator_probabilities = []
-        self.clause_mutation_rate = 0.5
 
-        # Controls the influence of pheromone trails on ant decisions
-        self.alpha = 2
-        # Controls the influence of heuristic information on ant decisions
-        self.beta = 3
+        # Controls the influence of how much money the ant made on the pheremone
+        self.alpha = acoparams[0]
+        # Controls the influence of rarer literals being more important
+        self.beta = acoparams[1]
         # Determines the rate at which pheromone trails evaporate over time
-        self.evaporation_rate = 0.1
+        self.evaporation_rate = acoparams[2]
 
         # Represents the average number of clauses in the DNF formulas
-        self.average_clauses = 2
+        self.average_clauses = acoparams[3]
         # Represents the average number of literals in each clause of the DNF formulas
-        self.average_literals = 2
+        self.average_literals = acoparams[4]
+
+        self.clause_mutation_rate = 0.5
+
         # Represents the number of ants in the ant colony optimization algorithm
-        self.num_ants = 5
+        self.num_ants = acoparams[5]
         # Represents the number of iterations the ant colony optimization algorithm will run for
-        self.num_iterations = 100
+        self.num_iterations = acoparams[6]
 
 
         # All our ants for the ACO algorithm
@@ -54,17 +54,25 @@ class ACOOptimiser:
 
         # Set the parameters for checking convergence
         # Current unimproved iteration set to 0 if a best ant is added to list.
-        self.max_unimproved_iterations = 50
+        self.max_unimproved_iterations = 25
         self.current_unimproved_iteration = 0
 
 
         # A list of literals for each key, along with their negations
-        self.literals = [(literal, val) for literal in self.literals for val in [True, False]]
+        new_literals = []
+        for literal in self.literals:
+            new_literals.append((literal, True))
+            new_literals.append((literal, False))
+        self.literals = new_literals
+
 
         # Initialize the pheromone values for buy and sell literals
         self.buy_pheromones = [1 for _ in range(len(self.literals))]
         self.sell_pheromones = [1 for _ in range(len(self.literals))]
         self.normalise_pheromones()
+
+        self.historical_buy_pheromones = []
+        self.historical_sell_pheromones = []
 
 
 
@@ -168,10 +176,6 @@ class ACOOptimiser:
         
         profit = self.cost_function(ant.buy_dnf, ant.sell_dnf) - 100
 
-        # only if we want operator probabilites
-        # if profit > ant.profit:
-        #     self.operator_success[ant.operator] += (profit - ant.profit)
-        
         ant.money = profit + 100
 
         return profit
@@ -185,6 +189,9 @@ class ACOOptimiser:
         """
         # Update the pheromone levels and apply evaporation
         # Calculate the total money made by all ants.
+        self.historical_buy_pheromones.append(copy.deepcopy(self.buy_pheromones))
+        self.historical_sell_pheromones.append(copy.deepcopy(self.sell_pheromones))
+
         total_money = sum(ant.money for ant in self.ants)
 
         # Update pheromone levels for both buy and sell lists
@@ -251,29 +258,20 @@ class ACOOptimiser:
 
             # Construct solutions
             for i, ant in enumerate(self.ants):
-                print(f"Ant {i+1} of {len(self.ants)} for iteration {iteration+1} of {self.num_iterations}")
+                # print(f"Ant {i+1} of {len(self.ants)} for iteration {iteration+1} of {self.num_iterations}")
                 if iteration > 0:
                     self.construct_solution(ant)
                 profits.append(self.evaluate_ant(ant))
 
             
-            # print(profits)
-            
+
 
             # Update pheromone levels
             
             self.update_pheromones()
 
-            # print(self.buy_pheromones)
-            # print(self.sell_pheromones)
-
-
             # Update best ant if its the best we've ever found, 
             #   otherwise increment the iteration if no new best ant is found
-
-            # print p to 2 decimal places
-            # for p in profits:
-            #     print("{:.2f}".format(p))
 
             self.update_best_ant(profits)
 
@@ -282,9 +280,12 @@ class ACOOptimiser:
             if self.current_unimproved_iteration == self.max_unimproved_iterations:
                 break
 
-        # Extract the best solution, which is the most recent best ant.
-        # best_buy_dnf_formula = self.best_ants[-1].buy_dnf
-        # best_sell_dnf_formula = self.best_ants[-1].sell_dnf
-        return self.best_ants
+        # Extract the best solutions 
+
+        # store final best pheremone matrices
+        self.historical_buy_pheromones.append(copy.deepcopy(self.buy_pheromones))
+        self.historical_sell_pheromones.append(copy.deepcopy(self.sell_pheromones))
+
+        return (self.best_ants, self.historical_buy_pheromones, self.historical_sell_pheromones)
 
 

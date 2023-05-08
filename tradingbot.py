@@ -6,7 +6,9 @@ import math
 import warnings
 import subprocess
 from aco_optimiser import Ant
-
+import plotly.graph_objects as go
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
 
 # Ignore RuntimeWarning caused by invalid value encountered in scalar divide
 warnings.filterwarnings("ignore", category=RuntimeWarning, message="invalid value encountered in scalar divide")
@@ -57,18 +59,23 @@ class Literal:
             return (self.ind2[t] > self.ind1[t])
 
 class TradingBot:
-    def __init__(self, data):
+    def __init__(self, data, window_sizes, acoparams):
         self.data = data
 
         self.all_indicators = [('ta.momentum.KAMAIndicator', 'close', 'kama()'), ('ta.momentum.RSIIndicator', 'close', 'rsi()'), ('ta.momentum.ROCIndicator', 'close', 'roc()'), ('ta.momentum.StochasticOscillator', 'high, low, close', 'stoch()'), ('ta.momentum.StochRSIIndicator', 'close', 'stochrsi()'), ('ta.trend.ADXIndicator', 'high, low, close', 'adx()'), ('ta.trend.AroonIndicator', 'close', 'aroon_indicator()'), ('ta.trend.EMAIndicator', 'close', 'ema_indicator()'), ('ta.trend.SMAIndicator', 'close', 'sma_indicator()'), ('ta.trend.VortexIndicator', 'high, low, close', 'vortex_indicator_diff()'), ('ta.volatility.AverageTrueRange', 'high, low, close', 'average_true_range()'), ('ta.volatility.BollingerBands', 'close', 'bollinger_mavg()'), ('ta.volatility.DonchianChannel', 'high, low, close', 'donchian_channel_mband()'), ('ta.volatility.KeltnerChannel', 'high, low, close', 'keltner_channel_mband()'), ('ta.volatility.UlcerIndex', 'close', 'ulcer_index()'), ('ta.volume.ChaikinMoneyFlowIndicator', 'high, low, close, volume', 'chaikin_money_flow()'), ('ta.volume.EaseOfMovementIndicator', 'high, low, volume', 'ease_of_movement()'), ('ta.volume.ForceIndexIndicator', 'close, volume', 'force_index()'), ('ta.volume.MFIIndicator', 'high, low, close, volume', 'money_flow_index()'), ('ta.volume.VolumeWeightedAveragePrice', 'high, low, close, volume', 'volume_weighted_average_price()')]
 
+
+
+
         # Window issue prevented by evaluating literals with NaN as false.
-        self.window_sizes = [7, 21]  # all window size options, ascending order.
+        self.window_sizes = window_sizes  # all window size options, ascending order.
+        self.acoparams = acoparams
+        
         self.period = len(data)
 
         if(max(self.window_sizes) >= self.period):
             raise Exception("Window size is larger than data period.")
-
+        
         ### ONLY IF WE WANT TO ADD TYPES OF INDICATORS ###
         # self.options = {
 
@@ -87,6 +94,14 @@ class TradingBot:
 
         self.wallet = 100
         self.btc = 0
+        self.bought = False
+
+        self.buy_signals = []
+        self.sell_signals = []
+
+        self.historical_buy_pheromones = []
+        self.historical_sell_pheromones = []
+
 
         self.best_ants = []
 
@@ -136,8 +151,11 @@ class TradingBot:
     def optimise(self):
         # Uses all paramters to find the best parameters, sets best dnfs accordingly.
         cost_function = lambda buy_dnf, sell_dnf: self.run(buy_dnf, sell_dnf)
-        optimiser = ACOOptimiser(cost_function, self.literal_dict.keys())
-        self.best_ants = optimiser.aco_algorithm()
+        optimiser = ACOOptimiser(cost_function, self.literal_dict.keys(), self.acoparams)
+        res = optimiser.aco_algorithm()
+        self.best_ants = res[0]
+        self.historical_buy_pheromones = res[1]
+        self.historical_sell_pheromones = res[2]
 
 
     def execute_buy(self, t):
@@ -159,6 +177,9 @@ class TradingBot:
         # reset our wallet and btc once we've run the bot
         self.wallet = 100
         self.btc = 0
+        self.bought = False
+        self.buy_signals = []
+        self.sell_signals = []
 
     def run(self, buy_dnf_formula, sell_dnf_formula):
         # We haven't bought our bitcoin yet at t=0
@@ -189,75 +210,193 @@ class TradingBot:
         final_wallet = self.wallet
         self.reset()
         return final_wallet
+    
+    def animate_run(self, buy_dnf_formula, sell_dnf_formula):
+        fig, ax = plt.subplots()
 
-# Load your OHLCV data for the past 720 days
+        # Plot the initial data
+        ax.plot(self.data.index, self.data['close'], label='close')
 
-#subprocess.run(['python', 'get_data.py'])
-data = pd.read_csv("aco_data.csv")
+        # Set up the legend
+        ax.legend(loc='best')
+
+        ani = FuncAnimation(fig, self.update, fargs=(ax, buy_dnf_formula, sell_dnf_formula),
+                        frames=range(self.period - 1), repeat=False)
+
+        plt.show()
 
 
-data_points = len(data)
-train_ratio = 0.2
-validation_ratio = 0.4
-test_ratio = 0.4
 
-# Split the data into train, validation, and test sets
-train_size = int(data_points * train_ratio)
-validation_size = int(data_points * validation_ratio)
-test_size = data_points - (train_size + validation_size)
+    def update(self, frame, ax, buy_dnf_formula, sell_dnf_formula):
+        # We haven't bought our bitcoin yet at t=0
+        # Sell and Buy are implemented by the formulas
 
-train_data = data[:train_size]
-validation_data = data[train_size:train_size + validation_size].reset_index(drop=True)
-test_data = data[train_size + validation_size:].reset_index(drop=True)
+        t = frame + 1
 
-# Train and validate the ACO model
-n_runs = 2
-all_best_ants = []
-all_performances = []
+        buy_t = self.buy_pulse(t, buy_dnf_formula)
+        buy_prev = self.buy_pulse(t - 1, buy_dnf_formula)
+        sell_t = self.sell_pulse(t, sell_dnf_formula)
+        sell_prev = self.sell_pulse(t - 1, sell_dnf_formula)
 
-test_bot = TradingBot(test_data)
-for i in range(n_runs):
-    print(f"Run {i+1} of {n_runs}")
+        buy_trigger = buy_t and not buy_prev and not (sell_t and not sell_prev)
+        sell_trigger = sell_t and not sell_prev and not (buy_t and not buy_prev)
 
-    # Train the ACO model on the train_data
-    train_bot = TradingBot(train_data)
-    val_bot = TradingBot(validation_data)
+        if not self.bought and buy_trigger:
+            self.execute_buy(t)
+            self.bought = True
+            self.buy_signals.append(t)
 
-    train_bot.optimise()
-    best_ants = train_bot.best_ants
+        elif self.bought and sell_trigger:
+            self.execute_sell(t)
+            self.bought = False
+            self.sell_signals.append(t)
 
-    # use top 5 ants to validate
-    if(len(best_ants) > 5):
-        best_ants = best_ants[-5:]
+        # Assume a sale on the close of the last day
+        if self.bought and t == self.period - 1:
+            self.execute_sell(self.period - 1)
+            self.sell_signals.append(self.period - 1)
+            
 
-    for ant in best_ants:
-        print(ant.buy_dnf)
-        print(ant.sell_dnf)
-        all_performances.append(val_bot.run(ant.buy_dnf, ant.sell_dnf))
+        # reset our wallet once we've run
 
-    all_best_ants.extend(best_ants)
+
+        ax.clear()
+        ax.plot(self.data.index[:t], self.data['close'][:t], label='close')
+
+        buy_signals_t = [x for x in self.buy_signals if x <= t]
+        sell_signals_t = [x for x in self.sell_signals if x <= t]
+  
+
+        ax.scatter(buy_signals_t, self.data.loc[buy_signals_t, 'close'], color='g', marker='^', label='Buy')
+        ax.scatter(sell_signals_t, self.data.loc[sell_signals_t, 'close'], color='r', marker='v', label='Sell')
+
+        # Set up the wallet and bitcoin_wallet text
+        ax.text(0.1, 0.85, f"Wallet: {self.wallet:.2f}", transform=ax.transAxes, fontsize=15, verticalalignment='top')
+        ax.text(0.1, 0.95, f"Bitcoin Wallet: {self.btc:.8f}", transform=ax.transAxes, fontsize=15, verticalalignment='top')
+
+
+
+        ax.legend(loc='best')
+
+
+    def draw_pheromone_maps(self):
+        fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2, figsize=(10, 5))
+        fig.suptitle("Pheromone Maps")
+        ax1.set_title("Buy Pheromones")
+        ax2.set_title("Sell Pheromones")
+
+        num_literals = len(self.literal_dict) * 2
+        max_timesteps = len(self.historical_buy_pheromones)
+
+        def update(frame):
+            ax1.clear()
+            ax2.clear()
+
+            buy_pheromones = np.array(self.historical_buy_pheromones[frame]).reshape(num_literals // 2, 2)
+            sell_pheromones = np.array(self.historical_sell_pheromones[frame]).reshape(num_literals // 2, 2)
+
+            vmin = min(np.min(buy_pheromones), np.min(sell_pheromones))
+            vmax = max(np.max(buy_pheromones), np.max(sell_pheromones))
+
+            ax1.imshow(buy_pheromones, cmap="coolwarm", vmin=vmin, vmax=vmax)
+            ax2.imshow(sell_pheromones, cmap="coolwarm", vmin=vmin, vmax=vmax)
+
+            ax1.set_title(f"Buy Pheromones (t={frame})")
+            ax2.set_title(f"Sell Pheromones (t={frame})")
+
+        ani = FuncAnimation(fig, update, frames=range(max_timesteps), repeat=False)
+        plt.show()
+
+
+    def draw_single_pheromone_map(self, buy_pheromones, sell_pheromones):
+        fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2, figsize=(10, 5))
+        fig.suptitle("Single Pheromone Map")
+        ax1.set_title("Buy Pheromones")
+        ax2.set_title("Sell Pheromones")
+
+        num_literals = len(self.literal_dict) * 2
+
+        buy_pheromones = np.array(buy_pheromones).reshape(num_literals // 2, 2)
+        sell_pheromones = np.array(sell_pheromones).reshape(num_literals // 2, 2)
+
+        vmin = min(np.min(buy_pheromones), np.min(sell_pheromones))
+        vmax = max(np.max(buy_pheromones), np.max(sell_pheromones))
+
+        cax1 = ax1.imshow(buy_pheromones, cmap="coolwarm", vmin=vmin, vmax=vmax)
+        cax2 = ax2.imshow(sell_pheromones, cmap="coolwarm", vmin=vmin, vmax=vmax)
+
+        fig.colorbar(cax1, ax=ax1)
+        fig.colorbar(cax2, ax=ax2)
+
+        plt.show()
+        print(buy_pheromones)
+        print(sell_pheromones)
+        print(list(self.literal_dict.keys()))
+
+
     
 
-# Fine-tune hyperparameters if needed, and repeat the training and validation process
 
-ants_and_scores = list(zip(all_best_ants, all_performances))
+    def plot_run(self, buy_dnf_formula, sell_dnf_formula):
+        df = self.data
 
-sorted_ants_and_scores = sorted(ants_and_scores, key=lambda x: x[1], reverse=True)
+        for t in range(1, self.period):
+            buy_t = self.buy_pulse(t, buy_dnf_formula)
+            buy_prev = self.buy_pulse(t - 1, buy_dnf_formula)
+            sell_t = self.sell_pulse(t, sell_dnf_formula)
+            sell_prev = self.sell_pulse(t - 1, sell_dnf_formula)
 
-if (len(sorted_ants_and_scores) >= 3):
-    top_3_ants = [ant_score[0] for ant_score in sorted_ants_and_scores[:3]]
+            buy_trigger = buy_t and not buy_prev and not (sell_t and not sell_prev)
+            sell_trigger = sell_t and not sell_prev and not (buy_t and not buy_prev)
 
-    ant_1_perf = test_bot.run(top_3_ants[0].buy_dnf, top_3_ants[0].sell_dnf)
-    ant_2_perf = test_bot.run(top_3_ants[1].buy_dnf, top_3_ants[1].sell_dnf)
-    ant_3_perf = test_bot.run(top_3_ants[2].buy_dnf, top_3_ants[2].sell_dnf)
+            if not self.bought and buy_trigger:
 
-    print(f"Ant 1 performance: {ant_1_perf}")
-    print(f"Ant 2 performance: {ant_2_perf}")
-    print(f"Ant 3 performance: {ant_3_perf}")
+                self.buy_signals.append(t)
+                self.bought = True
+            elif self.bought and sell_trigger:
 
-else:
-    perf = test_bot.run(sorted_ants_and_scores[0][0].buy_dnf, sorted_ants_and_scores[0][0].sell_dnf)
-    print(f"Best Ant Performance: {perf}")
+                self.sell_signals.append(t)
+                self.bought = False
+        
+        if self.bought:
+            self.sell_signals.append(self.period - 1)
+
+        fig = go.Figure()
+        print(self.sell_signals)
+        print(self.buy_signals)
+        # Add OHLCV data to the figure
+        fig.add_trace(go.Candlestick(x=df.index,
+                                    open=df['open'],
+                                    high=df['high'],
+                                    low=df['low'],
+                                    close=df['close'],
+                                    name='OHLCV'))
+
+        # Add buy signals to the figure
+        fig.add_trace(go.Scatter(x=df.iloc[self.buy_signals].index,
+                                y=df.iloc[self.buy_signals]['close'],
+                                mode='markers',
+                                marker=dict(color='green', size=10),
+                                name='Buy'))
+
+        # Add sell signals to the figure
+        fig.add_trace(go.Scatter(x=df.iloc[self.sell_signals].index,
+                                y=df.iloc[self.sell_signals]['close'],
+                                mode='markers',
+                                marker=dict(color='red', size=10),
+                                name='Sell'))
+
+        # Configure the layout
+        fig.update_layout(title='OHLCV Data with Buy and Sell Signals',
+                        yaxis_title='Price',
+                        xaxis_title='Time',
+                        xaxis_rangeslider_visible=False)
+
+        fig.show()
+
+        self.reset()
+        
+
 
 
 # Initialize the trading bot with the data
