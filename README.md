@@ -10,6 +10,9 @@ Optimiser class that uses ACO, employed by our run_bot algorithm
 # run_bot.py
 Main algorithm that runs the bot
 
+# evaluate.ipynb
+Notebook used to perform hyperparamter tuning
+
 ## TO RUN:
 clone the repo
 create a virtual environment, run:
