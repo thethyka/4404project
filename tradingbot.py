@@ -34,6 +34,7 @@ class Literal:
         self.ind1 = eval(indicator_str_1)
         self.ind2 = eval(indicator_str_2)
 
+
     def __str__(self):
         return f"{self.indicator[0]}_{self.window1}_{self.window2}"
 
@@ -105,6 +106,9 @@ class TradingBot:
 
         self.best_ants = []
 
+
+        self.ant_profits = []
+
     def test_indicators(self):
         # runs through each indicator to verify they're all valid and working.
         for key, literal in self.literal_dict.items():
@@ -156,6 +160,7 @@ class TradingBot:
         self.best_ants = res[0]
         self.historical_buy_pheromones = res[1]
         self.historical_sell_pheromones = res[2]
+        self.ant_profits = res[3]
 
 
     def execute_buy(self, t):
@@ -221,7 +226,7 @@ class TradingBot:
         ax.legend(loc='best')
 
         ani = FuncAnimation(fig, self.update, fargs=(ax, buy_dnf_formula, sell_dnf_formula),
-                        frames=range(self.period - 1), repeat=False)
+                        frames=range(self.period - 1), interval = 25, repeat=True)
 
         plt.show()
 
@@ -279,7 +284,7 @@ class TradingBot:
         ax.legend(loc='best')
 
 
-    def draw_pheromone_maps(self):
+    def animate_pheromone_maps(self):
         fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2, figsize=(10, 5))
         fig.suptitle("Pheromone Maps")
         ax1.set_title("Buy Pheromones")
@@ -304,7 +309,7 @@ class TradingBot:
             ax1.set_title(f"Buy Pheromones (t={frame})")
             ax2.set_title(f"Sell Pheromones (t={frame})")
 
-        ani = FuncAnimation(fig, update, frames=range(max_timesteps), repeat=False)
+        ani = FuncAnimation(fig, update, frames=range(max_timesteps), repeat=True)
         plt.show()
 
 
@@ -362,8 +367,8 @@ class TradingBot:
             self.sell_signals.append(self.period - 1)
 
         fig = go.Figure()
-        print(self.sell_signals)
         print(self.buy_signals)
+        print(self.sell_signals)
         # Add OHLCV data to the figure
         fig.add_trace(go.Candlestick(x=df.index,
                                     open=df['open'],
@@ -395,6 +400,74 @@ class TradingBot:
         fig.show()
 
         self.reset()
+
+
+    def plot_ants_over_time(self):
+        ant_profits = self.ant_profits
+        num_iterations = len(ant_profits)
+        num_ants = len(ant_profits[0])
+        
+        # Prepare the x-axis for the plot
+        x = list(range(1, num_iterations + 1))
+        
+        # Plot each ant's profit over time
+        for ant in range(num_ants):
+            y = [ant_profits[iteration][ant] for iteration in range(num_iterations)]
+            plt.plot(x, y, color='blue', alpha=0.3)
+        
+        # Calculate and plot the average profits
+        avg_profits = np.mean(ant_profits, axis=1)
+        plt.plot(x, avg_profits, color='red', label='Average')
+        
+        # Customize the plot
+        plt.xlabel('Iteration')
+        plt.ylabel('Profit')
+        plt.title('Ant Performance Over Time')
+        plt.legend()
+        plt.grid(True)
+        
+        # Show the plot
+        plt.show()
+
+    def animate_ants_over_time(self):
+        # Create a figure and axis
+        ant_profits = self.ant_profits
+        iterations = len(ant_profits)
+        num_ants = len(ant_profits[0])
+
+        
+        fig, ax = plt.subplots()
+
+        # Prepare the x-axis for the plot
+        x = list(range(1, iterations + 1))
+
+        # Prepare lines for each ant's profit and the average profit over time
+        lines = [ax.plot(x, [ant_profits[0][ant]] * iterations, color='blue', alpha=0.3)[0] for ant in range(num_ants)]
+        avg_line = ax.plot(x, [np.mean(ant_profits[0])] * iterations, color='red', label='Average')[0]
+
+        # Customize the plot
+        ax.set_xlabel('Iteration')
+        ax.set_ylabel('Profit')
+        ax.set_title('Ant Performance Over Time')
+        ax.legend()
+        ax.grid(True)
+
+        # Update function for the animation
+        def update(i):
+            iterations = len(self.ant_profits)
+            # Update each ant's line
+            for ant, line in enumerate(lines):
+                line.set_ydata([self.ant_profits[j][ant] for j in range(i+1)] + [None] * (iterations - i - 1))
+
+            # Update the average line
+            avg_line.set_ydata([np.mean(self.ant_profits[j]) for j in range(i+1)] + [None] * (iterations - i - 1))
+
+            return lines + [avg_line]
+
+        # Create the animation
+        anim = FuncAnimation(fig, update, frames=iterations, interval=200, blit=True)
+
+        plt.show()
         
 
 
