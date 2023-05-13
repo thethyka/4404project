@@ -24,8 +24,6 @@ class ACOOptimiser:
         self.cost_function = cost_function
         self.literals = list(keys)
 
-
-
         # Controls the influence of how much money the ant made on the pheremone
         self.alpha = acoparams[0]
         # Controls the influence of rarer literals being more important
@@ -73,6 +71,8 @@ class ACOOptimiser:
 
         self.historical_buy_pheromones = []
         self.historical_sell_pheromones = []
+
+        self.profits = []
 
 
 
@@ -263,8 +263,7 @@ class ACOOptimiser:
                     self.construct_solution(ant)
                 profits.append(self.evaluate_ant(ant))
 
-            
-
+            self.profits.append(profits)
 
             # Update pheromone levels
             
@@ -286,6 +285,6 @@ class ACOOptimiser:
         self.historical_buy_pheromones.append(copy.deepcopy(self.buy_pheromones))
         self.historical_sell_pheromones.append(copy.deepcopy(self.sell_pheromones))
 
-        return (self.best_ants, self.historical_buy_pheromones, self.historical_sell_pheromones)
+        return (self.best_ants, self.historical_buy_pheromones, self.historical_sell_pheromones, self.profits)
 
 

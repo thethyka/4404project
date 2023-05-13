@@ -38,22 +38,25 @@ if __name__ == "__main__":
 
     best_ant = train_bot.best_ants[-1]
     train_bot.draw_single_pheromone_map(train_bot.historical_buy_pheromones[-1], train_bot.historical_sell_pheromones[-1])
+    train_bot.animate_pheromone_maps()
+    train_bot.animate_ants_over_time()
     train_bot.plot_ants_over_time()
+
+    
+
     train_bot.plot_run(best_ant.buy_dnf, best_ant.sell_dnf)
-    test_bot.plot_run(best_ant.buy_dnf, best_ant.sell_dnf)
+    test_bot.plot_run(best_ant.buy_dnf, best_ant.sell_dnf)   
+    train_bot.animate_run(best_ant.buy_dnf, best_ant.sell_dnf)
+    test_bot.animate_run(best_ant.buy_dnf, best_ant.sell_dnf)
+
     print(train_bot.run(best_ant.buy_dnf, best_ant.sell_dnf))
     print(test_bot.run(best_ant.buy_dnf, best_ant.sell_dnf))
     print(best_ant.buy_dnf)
     print(best_ant.sell_dnf)
-
+    
+    
 
     # best_buy = [{('StochasticOscillator_5_40', False), ('StochasticOscillator_20_40', True), ('VortexIndicator_5_20', False), ('UlcerIndex_20_40', False), ('EMAIndicator_20_40', True), ('ChaikinMoneyFlowIndicator_20_40', False)}, {('ForceIndexIndicator_20_40', True), ('BollingerBands_5_40', True), ('DonchianChannel_5_40', False)}]
     # best_sell = [{('BollingerBands_5_20', False), ('KAMAIndicator_5_20', True)}]
-    # # print(test_bot.run(best_buy, best_sell))
-    # train_bot.animate_run(best_buy, best_sell)
-    
-    # test_bot.plot_run(best_buy, best_sell)
-
-    # print(train_bot.plot_ants_over_time())
 
 
